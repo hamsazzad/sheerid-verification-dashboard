@@ -321,11 +321,13 @@ export function startTelegramBot() {
       const email = generateEmail(firstName, lastName, "psu.edu");
       const birthDate = generateBirthDate(config.verifyType);
 
+      const uniName = config.verifyType === "k12teacher" ? "Springfield High School" : "Pennsylvania State University";
+
       const verification = await storage.createVerification({
         toolId: detectedToolId,
         status: "processing",
         email,
-        university: "Pennsylvania State University",
+        university: uniName,
         name: `${firstName} ${lastName}`,
         country: "US",
         url: link,
@@ -333,7 +335,7 @@ export function startTelegramBot() {
         firstName,
         lastName,
         birthDate,
-        organizationId: 0,
+        organizationId: config.verifyType === "k12teacher" ? 3995910 : 2565,
         sheeridVerificationId: verificationId,
         errorMessage: null,
       });
@@ -345,8 +347,8 @@ export function startTelegramBot() {
         lastName,
         email,
         birthDate,
-        organizationId: 0,
-        organizationName: "",
+        organizationId: config.verifyType === "k12teacher" ? 3995910 : 2565,
+        organizationName: uniName,
         url: link,
       });
 
