@@ -9,7 +9,6 @@ import {
   generateRandomName,
   generateEmail,
   generateBirthDate,
-  searchOrganization,
   TOOL_CONFIGS,
   checkVerificationStatus,
 } from "./sheerid-engine";
@@ -177,35 +176,6 @@ export async function registerRoutes(
         }
       }
 
-      let university;
-      if (parsed.data.universityId) {
-        university = await storage.getUniversityById(parsed.data.universityId);
-      }
-      if (!university) {
-        const allUnis = await storage.getAllUniversities();
-        if (allUnis.length === 0) {
-          return res.status(400).json({ message: "No universities in database" });
-        }
-        const totalWeight = allUnis.reduce((sum, u) => sum + u.weight, 0);
-        let rand = Math.random() * totalWeight;
-        university = allUnis[0];
-        for (const u of allUnis) {
-          rand -= u.weight;
-          if (rand <= 0) {
-            university = u;
-            break;
-          }
-        }
-      }
-
-      let resolvedOrgId = university.orgId;
-      let resolvedOrgName = university.name;
-      const sheeridOrg = await searchOrganization(verificationId, university.name);
-      if (sheeridOrg) {
-        resolvedOrgId = sheeridOrg.id;
-        resolvedOrgName = sheeridOrg.name;
-      }
-
       let firstName: string;
       let lastName: string;
       if (isAutoGenerate && (!parsed.data.firstName || !parsed.data.lastName)) {
@@ -217,11 +187,10 @@ export async function registerRoutes(
         lastName = parsed.data.lastName!.trim();
       }
 
-      const domain = university.domain || "psu.edu";
       let email: string;
       let birthDate: string;
       if (isAutoGenerate) {
-        email = parsed.data.email?.trim() || generateEmail(firstName, lastName, domain);
+        email = parsed.data.email?.trim() || generateEmail(firstName, lastName, "psu.edu");
         birthDate = parsed.data.birthDate?.trim() || generateBirthDate(config.verifyType);
       } else {
         email = parsed.data.email!.trim();
@@ -232,15 +201,15 @@ export async function registerRoutes(
         toolId,
         status: "processing",
         email,
-        university: resolvedOrgName,
+        university: "Pennsylvania State University",
         name: `${firstName} ${lastName}`,
-        country: university.country,
+        country: "US",
         url,
         proxy: proxy || null,
         firstName,
         lastName,
         birthDate,
-        organizationId: resolvedOrgId,
+        organizationId: 0,
         sheeridVerificationId: verificationId,
         errorMessage: null,
       });
@@ -253,8 +222,8 @@ export async function registerRoutes(
           lastName,
           email,
           birthDate,
-          organizationId: resolvedOrgId,
-          organizationName: resolvedOrgName,
+          organizationId: 0,
+          organizationName: "",
           url,
         });
 
