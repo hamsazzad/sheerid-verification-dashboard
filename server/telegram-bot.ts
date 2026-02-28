@@ -60,6 +60,17 @@ export function startTelegramBot() {
     return;
   }
 
+  if (bot) {
+    try { bot.stopPolling(); } catch {}
+    bot = null;
+  }
+
+  const DISABLE_POLLING = process.env.DISABLE_TELEGRAM_POLLING === "true";
+  if (DISABLE_POLLING) {
+    console.log("[Telegram] Polling disabled via DISABLE_TELEGRAM_POLLING=true (GitHub Actions bot handles Telegram)");
+    return;
+  }
+
   bot = new TelegramBot(BOT_TOKEN, { polling: true });
   console.log("[Telegram] Bot started with polling");
 
