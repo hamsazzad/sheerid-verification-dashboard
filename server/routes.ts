@@ -197,11 +197,14 @@ export async function registerRoutes(
         birthDate = parsed.data.birthDate!.trim();
       }
 
+      const uniName = config.verifyType === "k12teacher" ? "Springfield High School" : "Pennsylvania State University";
+      const orgId = config.verifyType === "k12teacher" ? 3995910 : 2565;
+
       const verification = await storage.createVerification({
         toolId,
         status: "processing",
         email,
-        university: "Pennsylvania State University",
+        university: uniName,
         name: `${firstName} ${lastName}`,
         country: "US",
         url,
@@ -209,7 +212,7 @@ export async function registerRoutes(
         firstName,
         lastName,
         birthDate,
-        organizationId: 0,
+        organizationId: orgId,
         sheeridVerificationId: verificationId,
         errorMessage: null,
       });
@@ -222,8 +225,8 @@ export async function registerRoutes(
           lastName,
           email,
           birthDate,
-          organizationId: 0,
-          organizationName: "",
+          organizationId: orgId,
+          organizationName: uniName,
           url,
         });
 
