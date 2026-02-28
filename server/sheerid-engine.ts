@@ -102,8 +102,8 @@ function getRandomK12School(): K12School {
 }
 
 export function parseVerificationId(url: string): string | null {
-  const match = url.match(/verificationId=([a-f0-9]+)/i);
-  if (match) return match[1];
+  const match = url.match(/verificationId=([a-f0-9-]+)/i);
+  if (match) return match[1].replace(/-/g, "");
   return null;
 }
 
@@ -114,7 +114,7 @@ export function parseExternalUserId(url: string): string | null {
 }
 
 function generateDeviceFingerprint(): string {
-  return crypto.createHash("md5").update(String(Date.now())).digest("hex");
+  return crypto.randomBytes(16).toString("hex");
 }
 
 function generateRandomName(): { firstName: string; lastName: string } {
