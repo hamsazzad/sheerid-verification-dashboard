@@ -7,7 +7,6 @@ import {
   generateRandomName,
   generateEmail,
   generateBirthDate,
-  searchOrganization,
   TOOL_CONFIGS,
   checkVerificationStatus,
 } from "./sheerid-engine";
@@ -318,48 +317,23 @@ export function startTelegramBot() {
 
     let tokensRefunded = false;
     try {
-      const allUnis = await storage.getAllUniversities();
-      if (allUnis.length === 0) {
-        await storage.addTokens(telegramId, VERIFICATION_COST);
-        tokensRefunded = true;
-        await bot!.sendMessage(chatId, "No universities configured. Tokens refunded.");
-        return;
-      }
-
-      const totalWeight = allUnis.reduce((sum, u) => sum + u.weight, 0);
-      let rand = Math.random() * totalWeight;
-      let university = allUnis[0];
-      for (const u of allUnis) {
-        rand -= u.weight;
-        if (rand <= 0) { university = u; break; }
-      }
-
-      let resolvedOrgId = university.orgId;
-      let resolvedOrgName = university.name;
-      const sheeridOrg = await searchOrganization(verificationId, university.name);
-      if (sheeridOrg) {
-        resolvedOrgId = sheeridOrg.id;
-        resolvedOrgName = sheeridOrg.name;
-      }
-
       const { firstName, lastName } = generateRandomName();
-      const domain = university.domain || "psu.edu";
-      const email = generateEmail(firstName, lastName, domain);
+      const email = generateEmail(firstName, lastName, "psu.edu");
       const birthDate = generateBirthDate(config.verifyType);
 
       const verification = await storage.createVerification({
         toolId: detectedToolId,
         status: "processing",
         email,
-        university: resolvedOrgName,
+        university: "Pennsylvania State University",
         name: `${firstName} ${lastName}`,
-        country: university.country,
+        country: "US",
         url: link,
         proxy: null,
         firstName,
         lastName,
         birthDate,
-        organizationId: resolvedOrgId,
+        organizationId: 0,
         sheeridVerificationId: verificationId,
         errorMessage: null,
       });
@@ -371,8 +345,8 @@ export function startTelegramBot() {
         lastName,
         email,
         birthDate,
-        organizationId: resolvedOrgId,
-        organizationName: resolvedOrgName,
+        organizationId: 0,
+        organizationName: "",
         url: link,
       });
 
