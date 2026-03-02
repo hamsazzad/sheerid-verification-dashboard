@@ -33,6 +33,8 @@ export const verifications = pgTable("verifications", {
   birthDate: text("birth_date"),
   organizationId: integer("organization_id"),
   sheeridVerificationId: text("sheerid_verification_id"),
+  documentImages: jsonb("document_images"),
+  waterfallSteps: jsonb("waterfall_steps"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

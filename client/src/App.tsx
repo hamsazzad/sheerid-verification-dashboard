@@ -13,6 +13,7 @@ import Tools from "@/pages/tools";
 import History from "@/pages/history";
 import Universities from "@/pages/universities";
 import Docs from "@/pages/docs";
+import Admin from "@/pages/admin";
 
 function Router() {
   return (
@@ -27,27 +28,38 @@ function Router() {
   );
 }
 
-function App() {
+function AppLayout() {
   const style = {
     "--sidebar-width": "14rem",
     "--sidebar-width-icon": "3rem",
   };
 
   return (
+    <SidebarProvider style={style as React.CSSProperties}>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <div className="flex flex-col flex-1 min-w-0">
+          <Header />
+          <main className="flex-1 overflow-auto">
+            <Router />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function App() {
+  return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <SidebarProvider style={style as React.CSSProperties}>
-            <div className="flex h-screen w-full">
-              <AppSidebar />
-              <div className="flex flex-col flex-1 min-w-0">
-                <Header />
-                <main className="flex-1 overflow-auto">
-                  <Router />
-                </main>
-              </div>
-            </div>
-          </SidebarProvider>
+          <Switch>
+            <Route path="/admin" component={Admin} />
+            <Route>
+              <AppLayout />
+            </Route>
+          </Switch>
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>

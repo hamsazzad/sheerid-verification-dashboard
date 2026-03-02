@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { seedDatabase } from "./seed";
@@ -13,6 +13,33 @@ import {
   checkVerificationStatus,
 } from "./sheerid-engine";
 import { startTelegramBot } from "./telegram-bot";
+
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@admin.com";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
+
+const adminSessions = new Map<string, { email: string; expiresAt: number }>();
+
+function generateSessionToken(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let token = "";
+  for (let i = 0; i < 64; i++) {
+    token += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return token;
+}
+
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  const session = adminSessions.get(token);
+  if (!session || session.expiresAt < Date.now()) {
+    adminSessions.delete(token || "");
+    return res.status(401).json({ message: "Session expired" });
+  }
+  next();
+}
 
 const runVerificationSchema = z.object({
   toolId: z.string().min(1),
@@ -41,6 +68,212 @@ export async function registerRoutes(
 ): Promise<Server> {
   await seedDatabase();
   startTelegramBot();
+
+  app.post("/api/admin/login", (req, res) => {
+    const { email, password } = req.body;
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      const token = generateSessionToken();
+      adminSessions.set(token, {
+        email,
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+      });
+      return res.json({ token, email });
+    }
+    return res.status(401).json({ message: "Invalid credentials" });
+  });
+
+  app.get("/api/admin/me", requireAdmin, (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const session = adminSessions.get(token || "");
+    res.json({ email: session?.email });
+  });
+
+  app.post("/api/admin/logout", requireAdmin, (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    adminSessions.delete(token || "");
+    res.json({ success: true });
+  });
+
+  app.get("/api/admin/verifications", requireAdmin, async (_req, res) => {
+    try {
+      const verifications = await storage.getAllVerifications();
+      res.json(verifications);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch verifications" });
+    }
+  });
+
+  app.get("/api/admin/verifications/:id", requireAdmin, async (req, res) => {
+    try {
+      const verifications = await storage.getAllVerifications();
+      const v = verifications.find(ver => ver.id === req.params.id);
+      if (!v) return res.status(404).json({ message: "Verification not found" });
+      res.json(v);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch verification" });
+    }
+  });
+
+  app.get("/api/admin/stats", requireAdmin, async (_req, res) => {
+    try {
+      const [allStats, allVerifications, tools] = await Promise.all([
+        storage.getAllStats(),
+        storage.getAllVerifications(),
+        storage.getAllTools(),
+      ]);
+      const totalAttempts = allStats.reduce((sum, s) => sum + s.totalAttempts, 0);
+      const totalSuccess = allStats.reduce((sum, s) => sum + s.successCount, 0);
+      const totalFailed = allStats.reduce((sum, s) => sum + s.failedCount, 0);
+      const successRate = totalAttempts > 0 ? Math.round((totalSuccess / totalAttempts) * 100) : 0;
+
+      res.json({
+        summary: { totalAttempts, totalSuccess, totalFailed, successRate, activeTools: tools.filter(t => t.isActive).length, totalTools: tools.length },
+        stats: allStats,
+        recentVerifications: allVerifications.slice(0, 50),
+        toolBreakdown: tools.map(t => {
+          const s = allStats.find(st => st.toolId === t.id);
+          return { toolId: t.id, name: t.name, attempts: s?.totalAttempts || 0, success: s?.successCount || 0, failed: s?.failedCount || 0 };
+        }),
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch admin stats" });
+    }
+  });
+
+  const BOT_API_SECRET = process.env.BOT_API_SECRET || process.env.TELEGRAM_BOT_TOKEN || "";
+
+  function requireBotAuth(req: Request, res: Response, next: NextFunction) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== `Bearer ${BOT_API_SECRET}`) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    next();
+  }
+
+  app.get("/api/bot/user/:telegramId", requireBotAuth, async (req, res) => {
+    try {
+      const user = await storage.getTelegramUser(req.params.telegramId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  app.get("/api/bot/user/referral/:code", requireBotAuth, async (req, res) => {
+    try {
+      const user = await storage.getTelegramUserByReferralCode(req.params.code);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  app.post("/api/bot/user", requireBotAuth, async (req, res) => {
+    try {
+      const { telegramId, username, firstName, referredBy } = req.body;
+      const existing = await storage.getTelegramUser(telegramId);
+      if (existing) return res.json(existing);
+
+      const crypto = await import("crypto");
+      const referralCode = crypto.randomBytes(4).toString("hex");
+      const user = await storage.createTelegramUser({
+        telegramId,
+        username: username || null,
+        firstName: firstName || null,
+        tokens: 0,
+        referralCode,
+        referredBy: referredBy || null,
+        hasJoinedChannel: false,
+        lastDaily: null,
+      });
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
+  app.patch("/api/bot/user/:telegramId", requireBotAuth, async (req, res) => {
+    try {
+      const updated = await storage.updateTelegramUser(req.params.telegramId, req.body);
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  app.post("/api/bot/user/:telegramId/addtokens", requireBotAuth, async (req, res) => {
+    try {
+      const { amount } = req.body;
+      const updated = await storage.addTokens(req.params.telegramId, amount);
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to add tokens" });
+    }
+  });
+
+  app.post("/api/bot/user/:telegramId/deducttokens", requireBotAuth, async (req, res) => {
+    try {
+      const { amount } = req.body;
+      const updated = await storage.deductTokens(req.params.telegramId, amount);
+      if (!updated) return res.status(404).json({ message: "Insufficient tokens or user not found" });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to deduct tokens" });
+    }
+  });
+
+  app.get("/api/bot/users", requireBotAuth, async (_req, res) => {
+    try {
+      const users = await storage.getAllTelegramUsers();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.post("/api/bot/ai", requireBotAuth, async (req, res) => {
+    try {
+      const { message, systemPrompt, userContext } = req.body;
+      if (!message) return res.status(400).json({ message: "Message is required" });
+
+      const fullMessages = [
+        { role: "system", content: systemPrompt || "You are a helpful Telegram bot assistant." },
+        ...(userContext ? [{ role: "system", content: `User context: ${userContext}` }] : []),
+        { role: "user", content: message },
+      ];
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45000);
+
+      const aiRes = await fetch("https://text.pollinations.ai/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: fullMessages,
+          model: "openai",
+          seed: Math.floor(Math.random() * 100000),
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!aiRes.ok) {
+        return res.status(502).json({ message: "AI service unavailable" });
+      }
+
+      const reply = await aiRes.text();
+      res.json({ reply: reply.trim() });
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        return res.status(504).json({ message: "AI request timed out" });
+      }
+      res.status(500).json({ message: "AI request failed" });
+    }
+  });
 
   app.get("/api/tools", async (_req, res) => {
     try {
@@ -197,8 +430,8 @@ export async function registerRoutes(
         birthDate = parsed.data.birthDate!.trim();
       }
 
-      const uniName = config.verifyType === "k12teacher" ? "Springfield High School" : "Pennsylvania State University";
-      const orgId = config.verifyType === "k12teacher" ? 3995910 : 2565;
+      const uniName = config.verifyType === "k12teacher" ? "K12 School" : "Pennsylvania State University";
+      const orgId = config.verifyType === "k12teacher" ? 155694 : 2565;
 
       const verification = await storage.createVerification({
         toolId,
@@ -215,6 +448,8 @@ export async function registerRoutes(
         organizationId: orgId,
         sheeridVerificationId: verificationId,
         errorMessage: null,
+        documentImages: null,
+        waterfallSteps: null,
       });
 
       try {
@@ -235,6 +470,9 @@ export async function registerRoutes(
         let finalRedirectUrl = result.redirectUrl;
         let finalRewardCode = result.rewardCode;
 
+        const docImages = result.documentImages || null;
+        const waterfallSteps = result.steps || null;
+
         if (result.success && !result.pending) {
           finalStatus = "success";
         } else if (result.success && result.pending) {
@@ -242,6 +480,8 @@ export async function registerRoutes(
             status: "pending",
             errorMessage: null,
             sheeridVerificationId: verificationId,
+            documentImages: docImages,
+            waterfallSteps,
           });
 
           const maxPolls = 30;
@@ -281,6 +521,8 @@ export async function registerRoutes(
           status: finalStatus,
           errorMessage: errorMsg,
           sheeridVerificationId: verificationId,
+          documentImages: docImages,
+          waterfallSteps,
         });
 
         const isSuccess = finalStatus === "success";

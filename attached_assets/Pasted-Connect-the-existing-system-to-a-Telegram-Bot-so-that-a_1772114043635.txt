@@ -1,0 +1,62 @@
+Connect the existing system to a Telegram Bot so that all functionality works through Telegram.
+
+Bot username: @shs_ai_assistant_bot
+Bot Token: 8582140783:AAEeX5iL_2nQEFlMKYIxGoquNDvDfEs8LRI
+
+The bot must operate exactly like the current main engine (hosted on Replit). The Telegram bot should act as an interface layer while keeping the same backend logic and server structure.
+
+========================
+USER FEATURES
+========================
+
+1. /start
+- When the user clicks /start, send a welcome message.
+- Ask the user to join this channel:
+  https://t.me/aamoviesofficial
+- After joining, show a button: "I'm Joined".
+- When the user clicks "I'm Joined", verify channel membership.
+- If verified, reward the user with 20 tokens.
+
+2. /daily
+- When clicked, give a daily bonus of 5 tokens.
+- Must be limited to once every 24 hours per user.
+
+3. /verify {link}
+- The user submits a link for verification.
+- If verification is successful:
+    - Deduct 50 tokens from the user's balance.
+- If verification fails:
+    - Refund the 50 tokens automatically.
+- Ensure proper validation and response handling.
+
+4. /balance
+- Display the user’s current token balance.
+
+5. /referral
+- Generate a unique referral link for the user.
+- For each successful referral, reward 10 tokens.
+
+========================
+ADMIN FEATURES
+========================
+
+Admin Username: @Aamoviesadmin
+
+Admin should have full control and permissions including:
+- Add tokens to any user
+- Remove tokens from any user
+- Run giveaways
+- Adjust balances
+- Manage system-level controls
+
+========================
+SYSTEM REQUIREMENTS
+========================
+
+- The main engine must remain hosted on Replit.
+- Telegram bot should communicate with the existing backend.
+- All logic (tokens, verification, referrals, daily rewards) must sync with the current database.
+- Ensure secure handling of tokens and validation.
+- Prevent abuse (daily limits, duplicate referrals, fake joins, etc.).
+
+The bot must function exactly like the current system but through Telegram commands.

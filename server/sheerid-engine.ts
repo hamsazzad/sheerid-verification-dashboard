@@ -10,6 +10,7 @@ interface ToolConfig {
   programId: string;
   verifyType: "student" | "teacher" | "k12teacher";
   collectStep: string;
+  usaOnly?: boolean;
 }
 
 export const TOOL_CONFIGS: Record<string, ToolConfig> = {
@@ -27,6 +28,7 @@ export const TOOL_CONFIGS: Record<string, ToolConfig> = {
     programId: "67c8c14f5f17a83b745e3f82",
     verifyType: "student",
     collectStep: "collectStudentPersonalInfo",
+    usaOnly: true,
   },
   "boltnew-verify": {
     programId: "68cc6a2e64f55220de204448",
@@ -84,13 +86,18 @@ interface K12School {
 }
 
 const K12_SCHOOLS: K12School[] = [
-  { id: 3995910, idExtended: "3995910", name: "Springfield High School (Springfield, OR)", country: "US" },
-  { id: 3995271, idExtended: "3995271", name: "Springfield High School (Springfield, OH)", country: "US" },
-  { id: 3992142, idExtended: "3992142", name: "Springfield High School (Springfield, IL)", country: "US" },
-  { id: 3996208, idExtended: "3996208", name: "Springfield High School (Springfield, PA)", country: "US" },
-  { id: 4015002, idExtended: "4015002", name: "Springfield High School (Springfield, TN)", country: "US" },
-  { id: 4015001, idExtended: "4015001", name: "Springfield High School (Springfield, VT)", country: "US" },
-  { id: 4014999, idExtended: "4014999", name: "Springfield High School (Springfield, LA)", country: "US" },
+  { id: 155694, idExtended: "155694", name: "Stuyvesant High School", country: "US" },
+  { id: 156251, idExtended: "156251", name: "Bronx High School Of Science", country: "US" },
+  { id: 157582, idExtended: "157582", name: "Brooklyn Technical High School", country: "US" },
+  { id: 3521141, idExtended: "3521141", name: "Walter Payton College Preparatory High School", country: "US" },
+  { id: 3704245, idExtended: "3704245", name: "Thomas Jefferson High School For Science And Technology", country: "US" },
+  { id: 3539252, idExtended: "3539252", name: "Gretchen Whitney High School", country: "US" },
+  { id: 262338, idExtended: "262338", name: "Lowell High School (San Francisco)", country: "US" },
+  { id: 3536914, idExtended: "3536914", name: "BASIS Scottsdale", country: "US" },
+  { id: 155846, idExtended: "155846", name: "KIPP Academy Charter School (Bronx)", country: "US" },
+  { id: 219471, idExtended: "219471", name: "Northside College Preparatory High School", country: "US" },
+  { id: 262370, idExtended: "262370", name: "Palo Alto High School", country: "US" },
+  { id: 185742, idExtended: "185742", name: "Berkeley Preparatory School", country: "US" },
 ];
 
 function getRandomPSUSchool(): PSUSchool {
@@ -305,10 +312,10 @@ async function htmlToScreenshot(html: string, width: number, height: number): Pr
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
-    await page.setViewport({ width, height, deviceScaleFactor: 2 });
+    await page.setViewport({ width, height, deviceScaleFactor: 1 });
     await page.setContent(html, { waitUntil: "domcontentloaded" });
     await new Promise(r => setTimeout(r, 300));
-    const screenshot = await page.screenshot({ type: "png", fullPage: true });
+    const screenshot = await page.screenshot({ type: "jpeg", quality: 72, fullPage: true });
     return Buffer.from(screenshot);
   } finally {
     await page.close();
@@ -331,102 +338,117 @@ export async function searchOrganization(
   }
 }
 
-function generateEnrollmentVerificationHtml(firstName: string, lastName: string, universityName: string): string {
-  const studentId = generateStudentId();
+function generateTranscriptHtml(firstName: string, lastName: string, universityName: string, birthDate: string): string {
   const name = `${firstName} ${lastName}`;
-  const dateStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth();
-  const semester = currentMonth >= 0 && currentMonth <= 4 ? "Spring" : currentMonth >= 5 && currentMonth <= 7 ? "Summer" : "Fall";
-  const termStr = `${semester} ${currentYear}`;
-  const majors = [
-    "Computer Science", "Biology", "Psychology", "Business Administration",
-    "Engineering", "English Literature", "Mathematics", "Economics",
-    "Political Science", "Chemistry", "Communications", "Nursing",
-    "Accounting", "Sociology", "History", "Environmental Science"
+  const now = new Date();
+  const dateIssued = now.toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const semester = currentMonth >= 0 && currentMonth <= 4 ? "SPRING" : currentMonth >= 5 && currentMonth <= 7 ? "SUMMER" : "FALL";
+  const studentId = `STU${Math.floor(100000 + Math.random() * 900000)}`;
+  const validThru = `${currentYear}-${currentYear + 1}`;
+
+  const courses = [
+    { code: "CS 101", title: "Intro to Computer Science", credits: "4.0", grade: "A" },
+    { code: "MATH 201", title: "Calculus I", credits: "3.0", grade: "A-" },
+    { code: "ENG 102", title: "Academic Writing", credits: "3.0", grade: "B+" },
+    { code: "PHYS 150", title: "Physics for Engineers", credits: "4.0", grade: "A" },
+    { code: "HIST 110", title: "World History", credits: "3.0", grade: "A" },
   ];
-  const major = majors[Math.floor(Math.random() * majors.length)];
-  const credits = Math.floor(Math.random() * 6 + 12);
-  const enrollYear = currentYear - Math.floor(Math.random() * 3 + 1);
-  const gradYear = enrollYear + 4;
-  const initials = universityName.split(/\s+/).filter(w => w.length > 2 && w[0] === w[0].toUpperCase()).map(w => w[0]).join("").slice(0, 3) || "U";
+
+  const courseRows = courses.map(c =>
+    `<tr><td>${c.code}</td><td>${c.title}</td><td style="text-align:center">${c.credits}</td><td style="text-align:center">${c.grade}</td></tr>`
+  ).join("\n");
 
   return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
+<html><head><meta charset="UTF-8">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Open+Sans:wght@400;600;700&display=swap');
-body { font-family: 'Open Sans', 'Helvetica Neue', Arial, sans-serif; background: #fff; margin: 0; padding: 0; color: #333; }
-.page { width: 8.5in; min-height: 11in; margin: 0 auto; padding: 0.75in 1in; box-sizing: border-box; position: relative; }
-.header { display: flex; align-items: center; padding-bottom: 20px; border-bottom: 3px solid #1a3a5c; margin-bottom: 30px; }
-.logo-mark { width: 65px; height: 65px; background: #1a3a5c; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-family: 'Merriweather', Georgia, serif; font-size: 24px; font-weight: 700; margin-right: 20px; flex-shrink: 0; }
-.header-text { flex: 1; }
-.uni-name { font-family: 'Merriweather', Georgia, serif; font-size: 20px; font-weight: 700; color: #1a3a5c; margin: 0; line-height: 1.3; }
-.dept-name { font-size: 13px; color: #555; margin-top: 4px; }
-.doc-date { font-size: 12px; color: #555; margin-bottom: 25px; }
-.doc-title { font-family: 'Merriweather', Georgia, serif; font-size: 18px; font-weight: 700; text-align: center; color: #1a3a5c; margin: 25px 0; padding: 12px 0; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; text-transform: uppercase; letter-spacing: 2px; }
-.body-text { font-size: 12px; line-height: 1.8; margin-bottom: 20px; }
-.info-table { width: 100%; border-collapse: collapse; margin: 25px 0; }
-.info-table tr { border-bottom: 1px solid #eee; }
-.info-table td { padding: 10px 8px; font-size: 12px; vertical-align: top; }
-.info-table td:first-child { width: 35%; color: #555; font-weight: 600; }
-.info-table td:last-child { color: #111; font-weight: 600; }
-.status-badge { display: inline-block; background: #d4edda; color: #155724; padding: 3px 12px; border-radius: 3px; font-size: 11px; font-weight: 700; }
-.seal-area { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 50px; }
-.signature-block { font-size: 11px; line-height: 1.6; }
-.signature-line { width: 200px; border-top: 1px solid #333; margin-top: 40px; padding-top: 5px; }
-.seal { width: 80px; height: 80px; border: 3px solid #1a3a5c; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Merriweather', Georgia, serif; font-size: 10px; text-align: center; color: #1a3a5c; font-weight: 700; line-height: 1.2; padding: 8px; box-sizing: border-box; }
-.footer { position: absolute; bottom: 0.5in; left: 1in; right: 1in; font-size: 9px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 8px; }
-.doc-id { font-family: 'Courier New', monospace; font-size: 9px; color: #aaa; }
+body { margin: 0; padding: 0; background: #fff; font-family: Arial, Helvetica, sans-serif; color: #000; }
+.page { width: 850px; height: 1100px; padding: 50px; box-sizing: border-box; }
+.header { text-align: center; margin-bottom: 10px; }
+.school-name { font-size: 28px; font-weight: bold; color: #000; text-transform: uppercase; letter-spacing: 1px; }
+.doc-title { font-size: 22px; color: #333; margin-top: 8px; }
+.line { border-top: 2px solid #000; margin: 15px 50px; }
+.info-row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 16px; }
+.info-row .label { color: #000; }
+.status-box { background: #f0f0f0; text-align: center; padding: 12px; margin: 20px 0; font-size: 16px; font-weight: bold; color: #006400; }
+table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+th { text-align: left; font-size: 15px; font-weight: bold; padding: 8px 4px; border-bottom: 1px solid #000; }
+td { font-size: 15px; padding: 8px 4px; }
+.summary { display: flex; justify-content: space-between; font-size: 15px; font-weight: bold; margin-top: 10px; }
+.footer { text-align: center; font-size: 13px; color: #666; margin-top: 40px; }
 </style>
 </head>
 <body>
 <div class="page">
   <div class="header">
-    <div class="logo-mark">${initials}</div>
-    <div class="header-text">
-      <div class="uni-name">${universityName}</div>
-      <div class="dept-name">Office of the Registrar</div>
-    </div>
+    <div class="school-name">${universityName}</div>
+    <div class="doc-title">OFFICIAL ACADEMIC TRANSCRIPT</div>
   </div>
-  <div class="doc-date">${dateStr}</div>
-  <div class="body-text">To Whom It May Concern:</div>
-  <div class="body-text">
-    This letter serves as official confirmation that the individual named below is currently enrolled
-    at <strong>${universityName}</strong>. This verification has been issued by the Office of the Registrar
-    upon request, and reflects the student's enrollment status as of the date shown above.
-  </div>
-  <div class="doc-title">Enrollment Verification</div>
-  <table class="info-table">
-    <tr><td>Student Name:</td><td>${name}</td></tr>
-    <tr><td>Student ID:</td><td>${studentId}</td></tr>
-    <tr><td>Enrollment Status:</td><td><span class="status-badge">Active - Full Time</span></td></tr>
-    <tr><td>Current Term:</td><td>${termStr}</td></tr>
-    <tr><td>Program / Major:</td><td>${major}</td></tr>
-    <tr><td>Degree Level:</td><td>Bachelor's Degree</td></tr>
-    <tr><td>Credits Enrolled:</td><td>${credits}</td></tr>
-    <tr><td>First Enrolled:</td><td>August ${enrollYear}</td></tr>
-    <tr><td>Expected Graduation:</td><td>May ${gradYear}</td></tr>
+  <div class="line"></div>
+  <div class="info-row"><span class="label">Student Name: ${name}</span><span>Student ID: ${studentId}</span></div>
+  <div class="info-row"><span class="label">Date of Birth: ${birthDate}</span><span>Date Issued: ${dateIssued}</span></div>
+  <div class="status-box">CURRENT STATUS: ENROLLED (${semester} ${currentYear})</div>
+  <table>
+    <tr><th>Course Code</th><th>Course Title</th><th style="text-align:center">Credits</th><th style="text-align:center">Grade</th></tr>
+    ${courseRows}
   </table>
-  <div class="body-text">
-    The student named above is in good academic standing and is actively pursuing a degree at this institution.
-    This document is provided for verification purposes only.
+  <div class="line"></div>
+  <div class="summary"><span>Cumulative GPA: 3.85</span><span>Academic Standing: Good</span></div>
+  <div class="info-row" style="margin-top:15px"><span>Major: Computer Science</span><span>Valid: ${validThru}</span></div>
+  <div class="footer">This document is electronically generated and valid without signature.</div>
+</div>
+</body>
+</html>`;
+}
+
+function generateStudentIdHtml(firstName: string, lastName: string, universityName: string): string {
+  const name = `${firstName} ${lastName}`;
+  const studentId = `${Math.floor(10000000 + Math.random() * 90000000)}`;
+  const currentYear = new Date().getFullYear();
+  const validThru = `05/${currentYear + 1}`;
+  const r1 = Math.floor(Math.random() * 50);
+  const r2 = Math.floor(Math.random() * 50);
+  const headerColor = `rgb(${r1}, ${r2}, ${Math.floor(50 + Math.random() * 100)})`;
+
+  const barcodeLines = Array.from({ length: 40 }, (_, i) => {
+    if (Math.random() > 0.3) {
+      const barH = 30 + Math.floor(Math.random() * 20);
+      return `<div style="position:absolute;left:${50 + i * 14}px;top:330px;width:8px;height:${barH}px;background:#000"></div>`;
+    }
+    return "";
+  }).join("");
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+body { margin: 0; padding: 0; background: #fff; font-family: Arial, Helvetica, sans-serif; }
+.card { width: 650px; height: 400px; background: rgb(${240 + Math.floor(Math.random() * 15)}, ${240 + Math.floor(Math.random() * 15)}, ${240 + Math.floor(Math.random() * 15)}); position: relative; }
+.card-header { position: absolute; top: 0; left: 0; right: 0; height: 80px; background: ${headerColor}; display: flex; align-items: center; justify-content: center; }
+.card-header-text { color: #fff; font-size: 24px; font-weight: bold; text-transform: uppercase; text-align: center; }
+.photo { position: absolute; left: 30px; top: 100px; width: 130px; height: 180px; border: 2px solid #aaa; background: #ddd; display: flex; align-items: center; justify-content: center; color: #999; font-size: 18px; }
+.info { position: absolute; left: 190px; top: 110px; }
+.info .name { font-size: 20px; font-weight: bold; color: #000; margin-bottom: 12px; }
+.info .field { margin-bottom: 8px; }
+.info .field-label { font-size: 13px; color: #666; display: inline; }
+.info .field-value { font-size: 17px; color: #000; display: inline; margin-left: 4px; }
+.card-footer { position: absolute; bottom: 0; left: 0; right: 0; height: 40px; background: ${headerColor}; display: flex; align-items: center; justify-content: center; }
+.card-footer-text { color: #fff; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header"><div class="card-header-text">STUDENT IDENTIFICATION CARD</div></div>
+  <div class="photo">PHOTO</div>
+  <div class="info">
+    <div class="name">${name}</div>
+    <div class="field"><span class="field-label">ID:</span><span class="field-value">${studentId}</span></div>
+    <div class="field"><span class="field-label">Status:</span><span class="field-value">Full-time Student</span></div>
+    <div class="field"><span class="field-label">Major:</span><span class="field-value">Computer Science</span></div>
+    <div class="field"><span class="field-label">Valid:</span><span class="field-value">${validThru}</span></div>
   </div>
-  <div class="seal-area">
-    <div class="signature-block">
-      <div class="signature-line">
-        University Registrar<br>
-        Office of the Registrar<br>
-        ${universityName}
-      </div>
-    </div>
-    <div class="seal">OFFICIAL<br>REGISTRAR<br>SEAL</div>
-  </div>
-  <div class="footer">
-    <span class="doc-id">Document ID: EVL-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}</span>
-    &nbsp;|&nbsp; Generated: ${dateStr} &nbsp;|&nbsp; Valid for 90 days from date of issue
-  </div>
+  ${barcodeLines}
+  <div class="card-footer"><div class="card-footer-text">Property of ${universityName}</div></div>
 </div>
 </body>
 </html>`;
@@ -528,59 +550,44 @@ body { font-family: 'Open Sans', 'Helvetica Neue', Arial, sans-serif; background
 </body></html>`;
 }
 
-function generateK12EmploymentHtml(firstName: string, lastName: string, organizationName: string): string {
-  const name = `${firstName} ${lastName}`;
-  const employeeId = `E-${Math.floor(1000000 + Math.random() * 9000000)}`;
-  const dateStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  const currentDate = new Date().toLocaleString("en-US", { month: "2-digit", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
-  const initials = organizationName.split(/\s+/).filter(w => w.length > 2 && w[0] === w[0].toUpperCase()).map(w => w[0]).join("").slice(0, 3) || "K";
+function generateTeacherBadgeHtml(firstName: string, lastName: string, organizationName: string): string {
+  const teacherId = `T${Math.floor(10000 + Math.random() * 90000)}`;
+  const currentYear = new Date().getFullYear();
 
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Open+Sans:wght@400;600;700&display=swap');
-body { font-family: 'Open Sans', 'Helvetica Neue', Arial, sans-serif; background: #fff; margin: 0; padding: 0; color: #333; }
-.page { width: 8.5in; min-height: 11in; margin: 0 auto; padding: 0.75in 1in; box-sizing: border-box; position: relative; }
-.header { display: flex; align-items: center; padding-bottom: 20px; border-bottom: 3px solid #2c5f2d; margin-bottom: 30px; }
-.logo-mark { width: 65px; height: 65px; background: #2c5f2d; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-family: 'Merriweather', Georgia, serif; font-size: 24px; font-weight: 700; margin-right: 20px; flex-shrink: 0; }
-.header-text { flex: 1; }
-.org-name { font-family: 'Merriweather', Georgia, serif; font-size: 20px; font-weight: 700; color: #2c5f2d; margin: 0; line-height: 1.3; }
-.dept-name { font-size: 13px; color: #555; margin-top: 4px; }
-.doc-date { font-size: 12px; color: #555; margin-bottom: 25px; }
-.doc-title { font-family: 'Merriweather', Georgia, serif; font-size: 18px; font-weight: 700; text-align: center; color: #2c5f2d; margin: 25px 0; padding: 12px 0; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; text-transform: uppercase; letter-spacing: 2px; }
-.body-text { font-size: 12px; line-height: 1.8; margin-bottom: 20px; }
-.info-table { width: 100%; border-collapse: collapse; margin: 25px 0; }
-.info-table tr { border-bottom: 1px solid #eee; }
-.info-table td { padding: 10px 8px; font-size: 12px; vertical-align: top; }
-.info-table td:first-child { width: 35%; color: #555; font-weight: 600; }
-.info-table td:last-child { color: #111; font-weight: 600; }
-.status-badge { display: inline-block; background: #d4edda; color: #155724; padding: 3px 12px; border-radius: 3px; font-size: 11px; font-weight: 700; }
-.seal-area { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 50px; }
-.signature-block { font-size: 11px; line-height: 1.6; }
-.signature-line { width: 200px; border-top: 1px solid #333; margin-top: 40px; padding-top: 5px; }
-.seal { width: 80px; height: 80px; border: 3px solid #2c5f2d; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Merriweather', Georgia, serif; font-size: 10px; text-align: center; color: #2c5f2d; font-weight: 700; line-height: 1.2; padding: 8px; box-sizing: border-box; }
-.footer { position: absolute; bottom: 0.5in; left: 1in; right: 1in; font-size: 9px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 8px; }
-.doc-id { font-family: 'Courier New', monospace; font-size: 9px; color: #aaa; }
+body { margin: 0; padding: 0; background: #fff; font-family: Arial, Helvetica, sans-serif; }
+.badge { width: 650px; height: 400px; background: #fff; position: relative; }
+.header-bar { background: #228B22; height: 50px; display: flex; align-items: center; justify-content: center; }
+.header-bar span { color: #fff; font-size: 22px; font-weight: bold; letter-spacing: 1px; }
+.school-name { text-align: center; color: #228B22; font-size: 16px; font-weight: bold; margin: 16px 0 10px; }
+.content { display: flex; padding: 0 25px; }
+.photo-box { width: 100px; height: 120px; border: 2px solid #ccc; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 16px; margin-right: 20px; flex-shrink: 0; }
+.info { padding-top: 5px; }
+.info div { font-size: 16px; color: #333; margin-bottom: 5px; }
+.valid { color: #666; font-size: 12px; margin-top: 15px; }
+.footer-bar { background: #228B22; height: 35px; position: absolute; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: center; }
+.footer-bar span { color: #fff; font-size: 12px; }
+.barcode { position: absolute; bottom: 40px; left: 25px; right: 25px; height: 20px; background: repeating-linear-gradient(90deg, #000 0px, #000 2px, #fff 2px, #fff 5px); }
 </style></head>
 <body>
-<div class="page">
-  <div class="header"><div class="logo-mark">${initials}</div><div class="header-text"><div class="org-name">${organizationName}</div><div class="dept-name">Human Resources Department</div></div></div>
-  <div class="doc-date">${dateStr}</div>
-  <div class="body-text">To Whom It May Concern:</div>
-  <div class="body-text">This letter confirms the employment of the individual named below with <strong>${organizationName}</strong>. This verification is issued by the Human Resources Department and reflects current employment records.</div>
-  <div class="doc-title">Employment Verification</div>
-  <table class="info-table">
-    <tr><td>Employee Name:</td><td>${name}</td></tr>
-    <tr><td>Employee ID:</td><td>${employeeId}</td></tr>
-    <tr><td>Position:</td><td>Teacher - Full Time</td></tr>
-    <tr><td>Employment Status:</td><td><span class="status-badge">Active</span></td></tr>
-    <tr><td>Employment Type:</td><td>Certified Faculty</td></tr>
-    <tr><td>Hire Date:</td><td>August 15, 2018</td></tr>
-    <tr><td>Current Assignment:</td><td>August 2025 - June 2026</td></tr>
-  </table>
-  <div class="body-text">The employee named above is currently an active member of the teaching staff. This document is provided for verification purposes only.</div>
-  <div class="seal-area"><div class="signature-block"><div class="signature-line">Director of Human Resources<br>${organizationName}</div></div><div class="seal">OFFICIAL<br>HR<br>SEAL</div></div>
-  <div class="footer"><span class="doc-id">Document ID: K12-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}</span>&nbsp;|&nbsp; Generated: ${dateStr} &nbsp;|&nbsp; Valid for 90 days from date of issue</div>
+<div class="badge">
+  <div class="header-bar"><span>STAFF IDENTIFICATION</span></div>
+  <div class="school-name">${organizationName}</div>
+  <div class="content">
+    <div class="photo-box">PHOTO</div>
+    <div class="info">
+      <div>Name: ${firstName} ${lastName}</div>
+      <div>ID: ${teacherId}</div>
+      <div>Position: Teacher</div>
+      <div>Department: Education</div>
+      <div>Status: Active</div>
+      <div class="valid">Valid: ${currentYear}-${currentYear + 1} School Year</div>
+    </div>
+  </div>
+  <div class="barcode"></div>
+  <div class="footer-bar"><span>Property of School District</span></div>
 </div>
 </body></html>`;
 }
@@ -589,32 +596,37 @@ async function generateDocumentImages(
   firstName: string,
   lastName: string,
   verifyType: "student" | "teacher" | "k12teacher",
-  organizationName: string
+  organizationName: string,
+  birthDate?: string
 ): Promise<Array<{ fileName: string; data: Buffer; mimeType: string }>> {
   if (verifyType === "student") {
-    const html = generateEnrollmentVerificationHtml(firstName, lastName, organizationName);
-    const data = await htmlToScreenshot(html, 850, 1100);
-    return [{ fileName: "student_card.png", data, mimeType: "image/png" }];
+    const useTranscript = Math.random() < 0.7;
+    if (useTranscript) {
+      const html = generateTranscriptHtml(firstName, lastName, organizationName, birthDate || "2003-01-15");
+      const data = await htmlToScreenshot(html, 850, 1100);
+      return [{ fileName: "transcript.jpg", data, mimeType: "image/jpeg" }];
+    } else {
+      const html = generateStudentIdHtml(firstName, lastName, organizationName);
+      const data = await htmlToScreenshot(html, 650, 400);
+      return [{ fileName: "student_card.jpg", data, mimeType: "image/jpeg" }];
+    }
   } else if (verifyType === "teacher") {
     const psuId = generatePsuId();
     const cardHtml = generateTeacherCardHtml(firstName, lastName, psuId);
     const letterHtml = generateEmploymentVerificationHtml(firstName, lastName, organizationName);
-    const [cardPng, letterPng] = await Promise.all([
+    const [cardData, letterData] = await Promise.all([
       htmlToScreenshot(cardHtml, 700, 1100),
       htmlToScreenshot(letterHtml, 1300, 1600),
     ]);
     return [
-      { fileName: "teacher_id.png", data: cardPng, mimeType: "image/png" },
-      { fileName: "employment_letter.png", data: letterPng, mimeType: "image/png" },
+      { fileName: "teacher_id.jpg", data: cardData, mimeType: "image/jpeg" },
+      { fileName: "employment_letter.jpg", data: letterData, mimeType: "image/jpeg" },
     ];
   } else {
-    const letterHtml = generateK12EmploymentHtml(firstName, lastName, organizationName);
-    const letterPng = await htmlToScreenshot(letterHtml, 850, 1100);
-    const cardHtml = generateTeacherCardHtml(firstName, lastName, generatePsuId());
-    const cardPng = await htmlToScreenshot(cardHtml, 700, 1100);
+    const badgeHtml = generateTeacherBadgeHtml(firstName, lastName, organizationName);
+    const badgeData = await htmlToScreenshot(badgeHtml, 650, 400);
     return [
-      { fileName: "employment_verification.png", data: letterPng, mimeType: "image/png" },
-      { fileName: "teacher_badge.png", data: cardPng, mimeType: "image/png" },
+      { fileName: "teacher_badge.jpg", data: badgeData, mimeType: "image/jpeg" },
     ];
   }
 }
@@ -635,6 +647,7 @@ interface VerificationResult {
   currentStep?: string;
   errorIds?: string[];
   steps: VerificationStep[];
+  documentImages?: Array<{ fileName: string; base64: string; mimeType: string }>;
 }
 
 async function sheeridRequest(method: string, url: string, body?: any): Promise<{ data: any; status: number }> {
@@ -716,84 +729,168 @@ export async function runVerification(params: {
   if (config.verifyType === "k12teacher") {
     const k12 = getRandomK12School();
     school = { id: k12.id, idExtended: k12.idExtended, name: k12.name };
+  } else if (config.usaOnly) {
+    school = { id: PSU_SCHOOLS[0].id, idExtended: PSU_SCHOOLS[0].idExtended, name: PSU_SCHOOLS[0].name };
   } else {
     const psu = getRandomPSUSchool();
     school = { id: psu.id, idExtended: psu.idExtended, name: psu.name };
   }
 
   try {
-    const documents = await generateDocumentImages(firstName, lastName, config.verifyType, school.name);
+    const checkResp = await sheeridRequest(
+      "GET",
+      `${SHEERID_BASE_URL}/rest/v2/verification/${verificationId}`
+    );
+    steps.push({ step: "checkVerificationState", status: checkResp.status, data: checkResp.data });
+
+    let currentStep = checkResp.data?.currentStep || "";
+
+    if (currentStep === "success") {
+      return {
+        success: true, pending: false,
+        message: "Verification already approved",
+        verificationId, currentStep, steps,
+      };
+    }
+    if (currentStep === "pending") {
+      return {
+        success: true, pending: true,
+        message: "Verification already pending review",
+        verificationId, currentStep, steps,
+      };
+    }
+    if (currentStep === "error") {
+      const errorIds = checkResp.data?.errorIds || [];
+      return {
+        success: false, pending: false,
+        message: `Verification in error state: ${errorIds.join(", ") || checkResp.data?.systemErrorMessage || "unknown"}`,
+        verificationId, errorIds, currentStep, steps,
+      };
+    }
+
+    if (currentStep === "emailLoop") {
+      return {
+        success: false, pending: false,
+        message: "Email verification loop triggered - need new verification link",
+        verificationId, currentStep, steps,
+      };
+    }
+
+    const validSteps = [config.collectStep, "docUpload", "sso"];
+    if (!validSteps.includes(currentStep)) {
+      return {
+        success: false, pending: false,
+        message: `Verification at unexpected step '${currentStep}' - may need a new verification link`,
+        verificationId, currentStep, steps,
+      };
+    }
+
+    const documents = await generateDocumentImages(firstName, lastName, config.verifyType, school.name, birthDate);
     steps.push({ step: "generateDocument", status: 200, data: { count: documents.length, sizes: documents.map(d => d.data.length) } });
 
-    const personalInfoBody: any = {
-      firstName,
-      lastName,
-      birthDate: config.verifyType === "teacher" ? "" : birthDate,
-      email,
-      phoneNumber: "",
-      organization: {
-        id: school.id,
-        idExtended: school.idExtended,
-        name: school.name,
-      },
-      deviceFingerprintHash: deviceFingerprint,
-      locale: "en-US",
-      metadata: {} as any,
-    };
+    const docImagesBase64 = documents.map(d => ({
+      fileName: d.fileName,
+      base64: d.data.toString("base64"),
+      mimeType: d.mimeType,
+    }));
 
-    if (config.verifyType === "student") {
-      personalInfoBody.metadata = {
-        marketConsentValue: false,
-        verificationId,
-        refererUrl: `${SHEERID_BASE_URL}/verify/${config.programId}/?verificationId=${verificationId}`,
-        flags: '{"collect-info-step-email-first":"default","doc-upload-considerations":"default","doc-upload-may24":"default","doc-upload-redesign-use-legacy-message-keys":false,"docUpload-assertion-checklist":"default","font-size":"default","include-cvec-field-france-student":"not-labeled-optional"}',
-        submissionOptIn: "By submitting the personal information above, I acknowledge that my personal information is being collected under the privacy policy of the business from which I am seeking a discount",
+    if (currentStep === config.collectStep) {
+      const personalInfoBody: any = {
+        firstName,
+        lastName,
+        birthDate: config.verifyType === "teacher" ? "" : birthDate,
+        email,
+        phoneNumber: "",
+        country: "US",
+        organization: {
+          id: school.id,
+          idExtended: school.idExtended,
+          name: school.name,
+        },
+        deviceFingerprintHash: deviceFingerprint,
+        locale: "en-US",
+        metadata: {} as any,
       };
-    } else if (config.verifyType === "teacher") {
-      const extUserId = externalUserId || `${Math.floor(1000000 + Math.random() * 9000000)}`;
-      personalInfoBody.externalUserId = extUserId;
-      personalInfoBody.metadata = {
-        marketConsentValue: true,
-        refererUrl: url,
-        externalUserId: extUserId,
-        flags: '{"doc-upload-considerations":"default","doc-upload-may24":"default","doc-upload-redesign-use-legacy-message-keys":false,"docUpload-assertion-checklist":"default","include-cvec-field-france-student":"not-labeled-optional","org-search-overlay":"default","org-selected-display":"default"}',
-        submissionOptIn: "By submitting the personal information above, I acknowledge that my personal information is being collected under the privacy policy of the business from which I am seeking a discount",
-      };
+
+      if (config.verifyType === "student") {
+        personalInfoBody.metadata = {
+          marketConsentValue: false,
+          verificationId,
+          refererUrl: `${SHEERID_BASE_URL}/verify/${config.programId}/?verificationId=${verificationId}`,
+          flags: '{"collect-info-step-email-first":"default","doc-upload-considerations":"default","doc-upload-may24":"default","doc-upload-redesign-use-legacy-message-keys":false,"docUpload-assertion-checklist":"default","font-size":"default","include-cvec-field-france-student":"not-labeled-optional"}',
+          submissionOptIn: "By submitting the personal information above, I acknowledge that my personal information is being collected under the privacy policy of the business from which I am seeking a discount",
+        };
+      } else if (config.verifyType === "teacher") {
+        const extUserId = externalUserId || `${Math.floor(1000000 + Math.random() * 9000000)}`;
+        personalInfoBody.externalUserId = extUserId;
+        personalInfoBody.metadata = {
+          marketConsentValue: true,
+          refererUrl: url,
+          externalUserId: extUserId,
+          flags: '{"doc-upload-considerations":"default","doc-upload-may24":"default","doc-upload-redesign-use-legacy-message-keys":false,"docUpload-assertion-checklist":"default","include-cvec-field-france-student":"not-labeled-optional","org-search-overlay":"default","org-selected-display":"default"}',
+          submissionOptIn: "By submitting the personal information above, I acknowledge that my personal information is being collected under the privacy policy of the business from which I am seeking a discount",
+        };
+      } else {
+        personalInfoBody.metadata = {
+          marketConsentValue: false,
+          submissionOptIn: "By submitting the personal information above, I acknowledge that my personal information is being collected under the privacy policy of the business from which I am seeking a discount",
+        };
+      }
+
+      const step2 = await sheeridRequest(
+        "POST",
+        `${SHEERID_BASE_URL}/rest/v2/verification/${verificationId}/step/${config.collectStep}`,
+        personalInfoBody
+      );
+      steps.push({ step: config.collectStep, status: step2.status, data: step2.data });
+
+      if (step2.status !== 200) {
+        return {
+          success: false, pending: false,
+          message: `Personal info submission failed (HTTP ${step2.status}): ${JSON.stringify(step2.data)}`,
+          verificationId, steps,
+        };
+      }
+
+      if (step2.data?.currentStep === "error") {
+        const errorIds = step2.data.errorIds || ["Unknown error"];
+        return {
+          success: false, pending: false,
+          message: `SheerID error: ${errorIds.join(", ")}`,
+          verificationId, errorIds, steps,
+        };
+      }
+
+      currentStep = step2.data?.currentStep || "";
+
+      if (currentStep === "success") {
+        return {
+          success: true, pending: false,
+          message: "Verification approved instantly (auto-pass)",
+          verificationId, currentStep,
+          redirectUrl: step2.data?.redirectUrl,
+          steps,
+        };
+      }
+
+      if (currentStep === "pending") {
+        return {
+          success: true, pending: true,
+          message: "Verification already pending review after info submission",
+          verificationId, currentStep, steps,
+        };
+      }
+
+      if (currentStep === "emailLoop") {
+        return {
+          success: false, pending: false,
+          message: "Email verification loop triggered - need new verification link",
+          verificationId, currentStep, steps,
+        };
+      }
     } else {
-      personalInfoBody.metadata = {
-        marketConsentValue: false,
-        verificationId,
-        refererUrl: `${SHEERID_BASE_URL}/verify/${config.programId}/?verificationId=${verificationId}`,
-        flags: '{"doc-upload-considerations":"default","doc-upload-may24":"default","doc-upload-redesign-use-legacy-message-keys":false,"docUpload-assertion-checklist":"default","include-cvec-field-france-student":"not-labeled-optional"}',
-        submissionOptIn: "By submitting the personal information above, I acknowledge that my personal information is being collected under the privacy policy of the business from which I am seeking a discount",
-      };
+      steps.push({ step: "skipPersonalInfo", status: 200, data: { reason: `Already past info step, currently at '${currentStep}'` } });
     }
-
-    const step2 = await sheeridRequest(
-      "POST",
-      `${SHEERID_BASE_URL}/rest/v2/verification/${verificationId}/step/${config.collectStep}`,
-      personalInfoBody
-    );
-    steps.push({ step: config.collectStep, status: step2.status, data: step2.data });
-
-    if (step2.status !== 200) {
-      return {
-        success: false, pending: false,
-        message: `Personal info submission failed (HTTP ${step2.status}): ${JSON.stringify(step2.data)}`,
-        verificationId, steps,
-      };
-    }
-
-    if (step2.data?.currentStep === "error") {
-      const errorIds = step2.data.errorIds || ["Unknown error"];
-      return {
-        success: false, pending: false,
-        message: `SheerID error: ${errorIds.join(", ")}`,
-        verificationId, errorIds, steps,
-      };
-    }
-
-    let currentStep = step2.data?.currentStep || "";
 
     if (currentStep === "sso" || currentStep === config.collectStep) {
       const step3 = await sheeridRequest(
@@ -807,10 +904,16 @@ export async function runVerification(params: {
     if (currentStep === "success") {
       return {
         success: true, pending: false,
-        message: "Verification approved instantly",
-        verificationId, currentStep,
-        redirectUrl: step2.data?.redirectUrl,
-        steps,
+        message: "Verification approved instantly after SSO skip",
+        verificationId, currentStep, steps,
+      };
+    }
+
+    if (currentStep === "emailLoop") {
+      return {
+        success: false, pending: false,
+        message: "Email verification loop triggered - need new verification link",
+        verificationId, currentStep, steps,
       };
     }
 
@@ -845,21 +948,18 @@ export async function runVerification(params: {
       };
     }
 
-    let allUploaded = true;
     for (let i = 0; i < documents.length; i++) {
       const uploadUrl = step4.data.documents[i].uploadUrl;
       const doc = documents[i];
       const uploaded = await uploadToS3(uploadUrl, doc.data, doc.mimeType);
       steps.push({ step: `s3Upload_${doc.fileName}`, status: uploaded ? 200 : 500, data: { uploaded, fileName: doc.fileName } });
-      if (!uploaded) allUploaded = false;
-    }
-
-    if (!allUploaded) {
-      return {
-        success: false, pending: false,
-        message: "One or more document uploads to S3 failed",
-        verificationId, steps,
-      };
+      if (!uploaded) {
+        return {
+          success: false, pending: false,
+          message: `S3 upload failed for ${doc.fileName}`,
+          verificationId, steps,
+        };
+      }
     }
 
     const step5 = await sheeridRequest(
@@ -878,14 +978,16 @@ export async function runVerification(params: {
         message: "Verification successful",
         verificationId, currentStep: finalStep,
         redirectUrl, rewardCode, steps,
+        documentImages: docImagesBase64,
       };
     }
 
     return {
       success: true, pending: true,
-      message: "Document submitted, awaiting review",
+      message: "Document submitted, awaiting review (24-48h)",
       verificationId, currentStep: finalStep,
       redirectUrl, rewardCode, steps,
+      documentImages: docImagesBase64,
     };
 
   } catch (error: any) {
@@ -907,7 +1009,7 @@ export async function checkVerificationStatus(verificationId: string): Promise<{
 }> {
   const { data, status } = await sheeridRequest(
     "GET",
-    `${MY_SHEERID_URL}/rest/v2/verification/${verificationId}`
+    `${SHEERID_BASE_URL}/rest/v2/verification/${verificationId}`
   );
 
   if (status !== 200) {
