@@ -402,98 +402,147 @@ td { font-size: 15px; padding: 8px 4px; }
 </html>`;
 }
 
-function generateStudentIdHtml(firstName: string, lastName: string, universityName: string, birthDate: string): string {
-  const name = `${firstName} ${lastName}`;
-  const studentId = `${Math.floor(10000000 + Math.random() * 90000000)}`;
-  const currentYear = new Date().getFullYear();
-  const issueDate = new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
-  const expDate = `05/31/${currentYear + 1}`;
-  const initials = universityName.split(/\s+/).filter(w => w.length > 2 && w[0] === w[0].toUpperCase()).map(w => w[0]).join("").slice(0, 3) || "U";
-  const majors = ["Computer Science", "Business Administration", "Biology", "Psychology", "Engineering", "Mathematics", "English Literature", "Political Science", "Economics", "Nursing"];
-  const major = majors[Math.floor(Math.random() * majors.length)];
+async function generateAIFacePhoto(): Promise<string> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const res = await fetch("https://thispersondoesnotexist.com/", {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (res.ok && res.headers.get("content-type")?.includes("image")) {
+      const buf = Buffer.from(await res.arrayBuffer());
+      return `data:image/jpeg;base64,${buf.toString("base64")}`;
+    }
+  } catch (err) {
+    console.log("[Photo] AI face generation failed, using placeholder");
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 250" width="200" height="250"><rect width="200" height="250" fill="#4a86c8"/><circle cx="100" cy="85" r="42" fill="#d4e3f5"/><ellipse cx="100" cy="220" rx="65" ry="55" fill="#d4e3f5"/></svg>`;
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+}
 
-  const hue = Math.floor(Math.random() * 360);
-  const brandColor = `hsl(${hue}, 65%, 30%)`;
-  const brandLight = `hsl(${hue}, 55%, 45%)`;
-  const brandBg = `hsl(${hue}, 30%, 95%)`;
+function generateStudentIdHtml(firstName: string, lastName: string, universityName: string, birthDate: string, photoDataUri: string): string {
+  const psuId = `9${Math.floor(10000000 + Math.random() * 90000000)}`;
+  const issuedDate = new Date().toISOString().split("T")[0];
 
-  const photoSilhouette = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 150" width="120" height="150"><rect width="120" height="150" fill="#e2e8f0" rx="4"/><circle cx="60" cy="52" r="28" fill="#94a3b8"/><ellipse cx="60" cy="135" rx="45" ry="40" fill="#94a3b8"/></svg>`;
-  const photoDataUri = `data:image/svg+xml;base64,${Buffer.from(photoSilhouette).toString('base64')}`;
+  const wavePaths: string[] = [];
+  for (let i = 0; i < 35; i++) {
+    const y = 10 + i * 12;
+    const amp = 3 + Math.random() * 4;
+    const freq = 0.008 + Math.random() * 0.004;
+    const phase = Math.random() * Math.PI * 2;
+    let d = `M 0 ${y}`;
+    for (let x = 0; x <= 650; x += 5) {
+      d += ` L ${x} ${y + Math.sin(x * freq + phase) * amp}`;
+    }
+    wavePaths.push(`<path d="${d}" fill="none" stroke="rgba(200,210,220,0.4)" stroke-width="0.8"/>`);
+  }
+  const wavePatternSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="650" height="420" viewBox="0 0 650 420">${wavePaths.join("")}</svg>`;
+  const waveBg = `data:image/svg+xml;base64,${Buffer.from(wavePatternSvg).toString("base64")}`;
 
-  const sigName = ["Dr. James Mitchell", "Dr. Sarah Thompson", "Dr. Robert Chen", "Dr. Maria Garcia", "Dr. William Park"][Math.floor(Math.random() * 5)];
-  const sigTitle = "Registrar";
+  const lionSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 260" width="220" height="260">
+    <circle cx="110" cy="100" r="65" fill="none" stroke="rgba(30,64,124,0.12)" stroke-width="3"/>
+    <ellipse cx="110" cy="95" rx="42" ry="48" fill="none" stroke="rgba(30,64,124,0.10)" stroke-width="2.5"/>
+    <circle cx="92" cy="82" r="6" fill="rgba(30,64,124,0.13)"/>
+    <circle cx="128" cy="82" r="6" fill="rgba(30,64,124,0.13)"/>
+    <ellipse cx="110" cy="100" rx="10" ry="7" fill="rgba(30,64,124,0.10)"/>
+    <path d="M 95 112 Q 110 125 125 112" fill="none" stroke="rgba(30,64,124,0.10)" stroke-width="2"/>
+    <path d="M 60 55 Q 50 30 70 40 Q 65 25 85 45" fill="none" stroke="rgba(30,64,124,0.08)" stroke-width="2.5"/>
+    <path d="M 160 55 Q 170 30 150 40 Q 155 25 135 45" fill="none" stroke="rgba(30,64,124,0.08)" stroke-width="2.5"/>
+    <path d="M 55 70 Q 35 65 45 80 Q 30 85 50 90" fill="none" stroke="rgba(30,64,124,0.08)" stroke-width="2"/>
+    <path d="M 165 70 Q 185 65 175 80 Q 190 85 170 90" fill="none" stroke="rgba(30,64,124,0.08)" stroke-width="2"/>
+    <ellipse cx="110" cy="190" rx="35" ry="45" fill="none" stroke="rgba(30,64,124,0.08)" stroke-width="2"/>
+    <line x1="90" y1="175" x2="85" y2="230" stroke="rgba(30,64,124,0.07)" stroke-width="2"/>
+    <line x1="130" y1="175" x2="135" y2="230" stroke="rgba(30,64,124,0.07)" stroke-width="2"/>
+    <path d="M 85 230 Q 95 245 110 240 Q 125 245 135 230" fill="none" stroke="rgba(30,64,124,0.07)" stroke-width="2"/>
+  </svg>`;
+  const lionBg = `data:image/svg+xml;base64,${Buffer.from(lionSvg).toString("base64")}`;
 
-  const barcodeLines = Array.from({ length: 60 }, () => {
-    const w = Math.random() > 0.5 ? 3 : 1;
-    return `<div style="display:inline-block;width:${w}px;height:35px;background:#000;margin-right:${Math.random() > 0.4 ? 2 : 1}px"></div>`;
-  }).join("");
+  const shieldSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 48" width="40" height="48">
+    <path d="M 20 2 L 38 12 L 38 30 Q 38 44 20 47 Q 2 44 2 30 L 2 12 Z" fill="#1E407C" stroke="#fff" stroke-width="1"/>
+    <path d="M 20 10 Q 14 18 14 22 Q 14 28 20 32 Q 26 28 26 22 Q 26 18 20 10 Z" fill="#fff" opacity="0.9"/>
+    <circle cx="20" cy="20" r="3" fill="#1E407C"/>
+    <path d="M 15 26 Q 20 35 25 26" fill="none" stroke="#fff" stroke-width="1.2"/>
+  </svg>`;
+  const shieldDataUri = `data:image/svg+xml;base64,${Buffer.from(shieldSvg).toString("base64")}`;
 
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
 <style>
-body { margin: 0; padding: 0; background: #fff; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
-.card { width: 680px; height: 430px; background: #fff; position: relative; border: 1px solid #ccc; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-.top-band { height: 6px; background: linear-gradient(90deg, ${brandColor}, ${brandLight}, ${brandColor}); }
-.header { display: flex; align-items: center; padding: 14px 24px 8px; gap: 14px; }
-.logo-circle { width: 52px; height: 52px; border-radius: 50%; background: ${brandColor}; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 18px; font-family: Georgia, serif; flex-shrink: 0; border: 2px solid ${brandLight}; }
-.header-text { flex: 1; }
-.uni-name { font-size: 16px; font-weight: 700; color: ${brandColor}; letter-spacing: 0.5px; line-height: 1.2; }
-.card-type { font-size: 11px; color: ${brandLight}; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-top: 2px; }
-.divider { height: 2px; background: linear-gradient(90deg, ${brandColor}, ${brandLight}, transparent); margin: 0 24px; }
-.body { display: flex; padding: 14px 24px; gap: 20px; }
-.photo-area { width: 125px; flex-shrink: 0; }
-.photo-frame { width: 125px; height: 155px; border: 2px solid ${brandColor}; border-radius: 6px; overflow: hidden; background: #f1f5f9; display: flex; align-items: center; justify-content: center; }
-.photo-frame img { width: 120px; height: 150px; object-fit: cover; }
-.info-area { flex: 1; padding-top: 2px; }
-.field { margin-bottom: 7px; }
-.field-label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-.field-value { font-size: 14px; color: #1a1a1a; font-weight: 600; margin-top: 1px; }
-.field-value.name-val { font-size: 18px; font-weight: 700; color: ${brandColor}; }
-.sig-area { margin-top: 10px; display: flex; align-items: flex-end; gap: 15px; }
-.signature { font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 22px; color: #333; transform: rotate(-3deg); border-bottom: 1px solid #999; padding-bottom: 2px; }
-.sig-info { font-size: 8px; color: #888; line-height: 1.4; }
-.bottom-section { position: absolute; bottom: 0; left: 0; right: 0; height: 65px; background: ${brandBg}; border-top: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
-.barcode { display: flex; align-items: center; height: 35px; }
-.hologram { width: 48px; height: 48px; border-radius: 50%; background: conic-gradient(from 0deg, ${brandColor}22, ${brandLight}44, #ffd70044, ${brandColor}22); border: 1px solid ${brandLight}66; display: flex; align-items: center; justify-content: center; font-size: 7px; color: ${brandColor}; font-weight: 700; text-align: center; line-height: 1.2; }
-.watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); font-size: 80px; color: ${brandColor}08; font-weight: 900; letter-spacing: 8px; pointer-events: none; white-space: nowrap; }
+body { margin: 0; padding: 0; background: #fff; font-family: Arial, Helvetica, sans-serif; }
+.card {
+  width: 650px; height: 420px; position: relative; overflow: hidden;
+  background: linear-gradient(145deg, #e8ecf2 0%, #dde3ec 30%, #d5dce8 60%, #cdd5e2 100%);
+  border-radius: 14px; border: 1px solid #b8c4d4;
+}
+.wave-bg {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background-image: url('${waveBg}');
+  background-size: cover; opacity: 1; pointer-events: none;
+}
+.lion-graphic {
+  position: absolute; right: 80px; top: 80px; width: 220px; height: 260px;
+  background-image: url('${lionBg}');
+  background-size: contain; background-repeat: no-repeat;
+  opacity: 1; pointer-events: none;
+}
+.logo-area {
+  position: absolute; top: 18px; right: 20px;
+  display: flex; align-items: center; gap: 8px;
+}
+.shield { width: 40px; height: 48px; }
+.penn-state-text { font-size: 22px; font-weight: 700; color: #1E407C; letter-spacing: 0.5px; }
+.id-plus {
+  position: absolute; bottom: 25px; right: 25px;
+  display: flex; align-items: center; gap: 2px;
+}
+.id-text { font-size: 58px; font-weight: 700; color: #1E407C; opacity: 0.18; letter-spacing: -2px; }
+.plus-text { font-size: 36px; font-weight: 700; color: #2C7BB5; opacity: 0.25; margin-top: -10px; }
+.photo-container {
+  position: absolute; top: 20px; left: 20px;
+  width: 150px; height: 185px;
+  border: 3px solid #1E407C; background: #4a86c8;
+  overflow: hidden;
+}
+.photo-container img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.info-section { position: absolute; top: 215px; left: 20px; }
+.last-name { font-size: 20px; font-weight: 800; color: #1a1a1a; letter-spacing: 0.5px; text-transform: uppercase; }
+.first-name { font-size: 18px; font-weight: 700; color: #1a1a1a; text-transform: uppercase; margin-top: 2px; }
+.psu-id-row { margin-top: 8px; font-size: 13px; color: #333; }
+.psu-id-label { font-weight: 700; }
+.psu-id-num { font-weight: 400; letter-spacing: 1px; }
+.status-row { margin-top: 6px; font-size: 12px; color: #555; display: flex; gap: 8px; }
+.status-label { color: #c0392b; font-weight: 700; font-size: 11px; }
+.issued-text { font-size: 12px; color: #555; }
 </style></head>
 <body>
 <div class="card">
-  <div class="top-band"></div>
-  <div class="header">
-    <div class="logo-circle">${initials}</div>
-    <div class="header-text">
-      <div class="uni-name">${universityName}</div>
-      <div class="card-type">Student Identification Card</div>
+  <div class="wave-bg"></div>
+  <div class="lion-graphic"></div>
+  <div class="logo-area">
+    <img src="${shieldDataUri}" class="shield" alt="PSU" />
+    <span class="penn-state-text">PennState</span>
+  </div>
+  <div class="photo-container">
+    <img src="${photoDataUri}" alt="Student Photo" />
+  </div>
+  <div class="info-section">
+    <div class="last-name">${lastName.toUpperCase()}</div>
+    <div class="first-name">${firstName.toUpperCase()}</div>
+    <div class="psu-id-row">
+      <span class="psu-id-label">PSU ID </span>
+      <span class="psu-id-num">${psuId}</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">F/S</span>
+      <span class="issued-text">Issued: ${issuedDate}</span>
     </div>
   </div>
-  <div class="divider"></div>
-  <div class="body">
-    <div class="photo-area">
-      <div class="photo-frame"><img src="${photoDataUri}" alt="Photo" /></div>
-    </div>
-    <div class="info-area">
-      <div class="field"><div class="field-label">Full Name</div><div class="field-value name-val">${name}</div></div>
-      <div class="field"><div class="field-label">Student ID</div><div class="field-value">${studentId}</div></div>
-      <div class="field" style="display:flex;gap:30px">
-        <div><div class="field-label">Date of Birth</div><div class="field-value">${birthDate}</div></div>
-        <div><div class="field-label">Major</div><div class="field-value">${major}</div></div>
-      </div>
-      <div class="field" style="display:flex;gap:30px">
-        <div><div class="field-label">Issued</div><div class="field-value">${issueDate}</div></div>
-        <div><div class="field-label">Expires</div><div class="field-value">${expDate}</div></div>
-      </div>
-      <div class="sig-area">
-        <div class="signature">${sigName}</div>
-        <div class="sig-info">${sigTitle}<br>${universityName}</div>
-      </div>
-    </div>
+  <div class="id-plus">
+    <span class="id-text">id</span>
+    <span class="plus-text">+</span>
   </div>
-  <div class="bottom-section">
-    <div class="barcode">${barcodeLines}</div>
-    <div class="hologram">VALID<br>ID</div>
-  </div>
-  <div class="watermark">${initials}</div>
 </div>
 </body></html>`;
 }
@@ -644,8 +693,9 @@ async function generateDocumentImages(
   birthDate?: string
 ): Promise<Array<{ fileName: string; data: Buffer; mimeType: string }>> {
   if (verifyType === "student") {
-    const html = generateStudentIdHtml(firstName, lastName, organizationName, birthDate || "2003-01-15");
-    const data = await htmlToScreenshot(html, 680, 430);
+    const photoDataUri = await generateAIFacePhoto();
+    const html = generateStudentIdHtml(firstName, lastName, organizationName, birthDate || "2003-01-15", photoDataUri);
+    const data = await htmlToScreenshot(html, 650, 420);
     return [{ fileName: "student_card.jpg", data, mimeType: "image/jpeg" }];
   } else if (verifyType === "teacher") {
     const psuId = generatePsuId();
