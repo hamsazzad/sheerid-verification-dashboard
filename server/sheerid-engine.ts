@@ -402,56 +402,100 @@ td { font-size: 15px; padding: 8px 4px; }
 </html>`;
 }
 
-function generateStudentIdHtml(firstName: string, lastName: string, universityName: string): string {
+function generateStudentIdHtml(firstName: string, lastName: string, universityName: string, birthDate: string): string {
   const name = `${firstName} ${lastName}`;
   const studentId = `${Math.floor(10000000 + Math.random() * 90000000)}`;
   const currentYear = new Date().getFullYear();
-  const validThru = `05/${currentYear + 1}`;
-  const r1 = Math.floor(Math.random() * 50);
-  const r2 = Math.floor(Math.random() * 50);
-  const headerColor = `rgb(${r1}, ${r2}, ${Math.floor(50 + Math.random() * 100)})`;
+  const issueDate = new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
+  const expDate = `05/31/${currentYear + 1}`;
+  const initials = universityName.split(/\s+/).filter(w => w.length > 2 && w[0] === w[0].toUpperCase()).map(w => w[0]).join("").slice(0, 3) || "U";
+  const majors = ["Computer Science", "Business Administration", "Biology", "Psychology", "Engineering", "Mathematics", "English Literature", "Political Science", "Economics", "Nursing"];
+  const major = majors[Math.floor(Math.random() * majors.length)];
 
-  const barcodeLines = Array.from({ length: 40 }, (_, i) => {
-    if (Math.random() > 0.3) {
-      const barH = 30 + Math.floor(Math.random() * 20);
-      return `<div style="position:absolute;left:${50 + i * 14}px;top:330px;width:8px;height:${barH}px;background:#000"></div>`;
-    }
-    return "";
+  const hue = Math.floor(Math.random() * 360);
+  const brandColor = `hsl(${hue}, 65%, 30%)`;
+  const brandLight = `hsl(${hue}, 55%, 45%)`;
+  const brandBg = `hsl(${hue}, 30%, 95%)`;
+
+  const photoSilhouette = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 150" width="120" height="150"><rect width="120" height="150" fill="#e2e8f0" rx="4"/><circle cx="60" cy="52" r="28" fill="#94a3b8"/><ellipse cx="60" cy="135" rx="45" ry="40" fill="#94a3b8"/></svg>`;
+  const photoDataUri = `data:image/svg+xml;base64,${Buffer.from(photoSilhouette).toString('base64')}`;
+
+  const sigName = ["Dr. James Mitchell", "Dr. Sarah Thompson", "Dr. Robert Chen", "Dr. Maria Garcia", "Dr. William Park"][Math.floor(Math.random() * 5)];
+  const sigTitle = "Registrar";
+
+  const barcodeLines = Array.from({ length: 60 }, () => {
+    const w = Math.random() > 0.5 ? 3 : 1;
+    return `<div style="display:inline-block;width:${w}px;height:35px;background:#000;margin-right:${Math.random() > 0.4 ? 2 : 1}px"></div>`;
   }).join("");
 
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
 <style>
-body { margin: 0; padding: 0; background: #fff; font-family: Arial, Helvetica, sans-serif; }
-.card { width: 650px; height: 400px; background: rgb(${240 + Math.floor(Math.random() * 15)}, ${240 + Math.floor(Math.random() * 15)}, ${240 + Math.floor(Math.random() * 15)}); position: relative; }
-.card-header { position: absolute; top: 0; left: 0; right: 0; height: 80px; background: ${headerColor}; display: flex; align-items: center; justify-content: center; }
-.card-header-text { color: #fff; font-size: 24px; font-weight: bold; text-transform: uppercase; text-align: center; }
-.photo { position: absolute; left: 30px; top: 100px; width: 130px; height: 180px; border: 2px solid #aaa; background: #ddd; display: flex; align-items: center; justify-content: center; color: #999; font-size: 18px; }
-.info { position: absolute; left: 190px; top: 110px; }
-.info .name { font-size: 20px; font-weight: bold; color: #000; margin-bottom: 12px; }
-.info .field { margin-bottom: 8px; }
-.info .field-label { font-size: 13px; color: #666; display: inline; }
-.info .field-value { font-size: 17px; color: #000; display: inline; margin-left: 4px; }
-.card-footer { position: absolute; bottom: 0; left: 0; right: 0; height: 40px; background: ${headerColor}; display: flex; align-items: center; justify-content: center; }
-.card-footer-text { color: #fff; font-size: 13px; }
-</style>
-</head>
+body { margin: 0; padding: 0; background: #fff; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+.card { width: 680px; height: 430px; background: #fff; position: relative; border: 1px solid #ccc; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+.top-band { height: 6px; background: linear-gradient(90deg, ${brandColor}, ${brandLight}, ${brandColor}); }
+.header { display: flex; align-items: center; padding: 14px 24px 8px; gap: 14px; }
+.logo-circle { width: 52px; height: 52px; border-radius: 50%; background: ${brandColor}; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 18px; font-family: Georgia, serif; flex-shrink: 0; border: 2px solid ${brandLight}; }
+.header-text { flex: 1; }
+.uni-name { font-size: 16px; font-weight: 700; color: ${brandColor}; letter-spacing: 0.5px; line-height: 1.2; }
+.card-type { font-size: 11px; color: ${brandLight}; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-top: 2px; }
+.divider { height: 2px; background: linear-gradient(90deg, ${brandColor}, ${brandLight}, transparent); margin: 0 24px; }
+.body { display: flex; padding: 14px 24px; gap: 20px; }
+.photo-area { width: 125px; flex-shrink: 0; }
+.photo-frame { width: 125px; height: 155px; border: 2px solid ${brandColor}; border-radius: 6px; overflow: hidden; background: #f1f5f9; display: flex; align-items: center; justify-content: center; }
+.photo-frame img { width: 120px; height: 150px; object-fit: cover; }
+.info-area { flex: 1; padding-top: 2px; }
+.field { margin-bottom: 7px; }
+.field-label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+.field-value { font-size: 14px; color: #1a1a1a; font-weight: 600; margin-top: 1px; }
+.field-value.name-val { font-size: 18px; font-weight: 700; color: ${brandColor}; }
+.sig-area { margin-top: 10px; display: flex; align-items: flex-end; gap: 15px; }
+.signature { font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 22px; color: #333; transform: rotate(-3deg); border-bottom: 1px solid #999; padding-bottom: 2px; }
+.sig-info { font-size: 8px; color: #888; line-height: 1.4; }
+.bottom-section { position: absolute; bottom: 0; left: 0; right: 0; height: 65px; background: ${brandBg}; border-top: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+.barcode { display: flex; align-items: center; height: 35px; }
+.hologram { width: 48px; height: 48px; border-radius: 50%; background: conic-gradient(from 0deg, ${brandColor}22, ${brandLight}44, #ffd70044, ${brandColor}22); border: 1px solid ${brandLight}66; display: flex; align-items: center; justify-content: center; font-size: 7px; color: ${brandColor}; font-weight: 700; text-align: center; line-height: 1.2; }
+.watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); font-size: 80px; color: ${brandColor}08; font-weight: 900; letter-spacing: 8px; pointer-events: none; white-space: nowrap; }
+</style></head>
 <body>
 <div class="card">
-  <div class="card-header"><div class="card-header-text">STUDENT IDENTIFICATION CARD</div></div>
-  <div class="photo">PHOTO</div>
-  <div class="info">
-    <div class="name">${name}</div>
-    <div class="field"><span class="field-label">ID:</span><span class="field-value">${studentId}</span></div>
-    <div class="field"><span class="field-label">Status:</span><span class="field-value">Full-time Student</span></div>
-    <div class="field"><span class="field-label">Major:</span><span class="field-value">Computer Science</span></div>
-    <div class="field"><span class="field-label">Valid:</span><span class="field-value">${validThru}</span></div>
+  <div class="top-band"></div>
+  <div class="header">
+    <div class="logo-circle">${initials}</div>
+    <div class="header-text">
+      <div class="uni-name">${universityName}</div>
+      <div class="card-type">Student Identification Card</div>
+    </div>
   </div>
-  ${barcodeLines}
-  <div class="card-footer"><div class="card-footer-text">Property of ${universityName}</div></div>
+  <div class="divider"></div>
+  <div class="body">
+    <div class="photo-area">
+      <div class="photo-frame"><img src="${photoDataUri}" alt="Photo" /></div>
+    </div>
+    <div class="info-area">
+      <div class="field"><div class="field-label">Full Name</div><div class="field-value name-val">${name}</div></div>
+      <div class="field"><div class="field-label">Student ID</div><div class="field-value">${studentId}</div></div>
+      <div class="field" style="display:flex;gap:30px">
+        <div><div class="field-label">Date of Birth</div><div class="field-value">${birthDate}</div></div>
+        <div><div class="field-label">Major</div><div class="field-value">${major}</div></div>
+      </div>
+      <div class="field" style="display:flex;gap:30px">
+        <div><div class="field-label">Issued</div><div class="field-value">${issueDate}</div></div>
+        <div><div class="field-label">Expires</div><div class="field-value">${expDate}</div></div>
+      </div>
+      <div class="sig-area">
+        <div class="signature">${sigName}</div>
+        <div class="sig-info">${sigTitle}<br>${universityName}</div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-section">
+    <div class="barcode">${barcodeLines}</div>
+    <div class="hologram">VALID<br>ID</div>
+  </div>
+  <div class="watermark">${initials}</div>
 </div>
-</body>
-</html>`;
+</body></html>`;
 }
 
 function generateTeacherCardHtml(firstName: string, lastName: string, psuId: string): string {
@@ -600,16 +644,9 @@ async function generateDocumentImages(
   birthDate?: string
 ): Promise<Array<{ fileName: string; data: Buffer; mimeType: string }>> {
   if (verifyType === "student") {
-    const useTranscript = Math.random() < 0.7;
-    if (useTranscript) {
-      const html = generateTranscriptHtml(firstName, lastName, organizationName, birthDate || "2003-01-15");
-      const data = await htmlToScreenshot(html, 850, 1100);
-      return [{ fileName: "transcript.jpg", data, mimeType: "image/jpeg" }];
-    } else {
-      const html = generateStudentIdHtml(firstName, lastName, organizationName);
-      const data = await htmlToScreenshot(html, 650, 400);
-      return [{ fileName: "student_card.jpg", data, mimeType: "image/jpeg" }];
-    }
+    const html = generateStudentIdHtml(firstName, lastName, organizationName, birthDate || "2003-01-15");
+    const data = await htmlToScreenshot(html, 680, 430);
+    return [{ fileName: "student_card.jpg", data, mimeType: "image/jpeg" }];
   } else if (verifyType === "teacher") {
     const psuId = generatePsuId();
     const cardHtml = generateTeacherCardHtml(firstName, lastName, psuId);
